@@ -48,5 +48,10 @@ namespace ConsoleApp.Actors
             Command<GetMessages>(get => Sender.Tell(messages.AsEnumerable()));
         }
 
+        public static Props PropsFor(string tickerSymbol)
+        {
+            return Props.Create(() => new UserActor());
+        }
+
     }
 }

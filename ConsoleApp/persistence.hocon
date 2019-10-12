@@ -1,0 +1,28 @@
+
+akka {
+	persistence{
+          journal {
+            plugin = "akka.persistence.journal.sql-server"
+            sql-server {
+                class = "Akka.Persistence.SqlServer.Journal.SqlServerJournal, Akka.Persistence.SqlServer"
+                plugin-dispatcher = ""akka.actor.default-dispatcher""
+                table-name = EventJournal
+                schema-name = dbo
+                auto-initialize = on
+                connection-string = "Data Source=Y-BROVKIN-M\\SQL2016;Initial Catalog=akkatest;Integrated Security=True"
+            }
+          }
+          publish-plugin-commands = on
+          snapshot-store {
+            plugin = "akka.persistence.snapshot-store.sql-server"
+            sql-server {
+                class = "Akka.Persistence.SqlServer.Snapshot.SqlServerSnapshotStore, Akka.Persistence.SqlServer"
+                plugin-dispatcher = "akka.actor.default-dispatcher"
+                table-name = SnapshotStore
+                schema-name = dbo
+                auto-initialize = on
+                connection-string = "Data Source=Y-BROVKIN-M\\SQL2016;Initial Catalog=akkatest;Integrated Security=True"
+            }
+          }
+        }
+}

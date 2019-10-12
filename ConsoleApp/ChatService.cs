@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Xml.Linq;
 using Akka.Actor;
+using Akka.Cluster;
 using Akka.Cluster.Sharding;
 using Akka.Configuration;
+using Akka.Persistence;
 using ConsoleApp.Actors;
+using ConsoleApp.Config;
 using ConsoleApp.Domain;
 
 namespace ConsoleApp
@@ -17,45 +15,37 @@ namespace ConsoleApp
         public void Start()
         {
 
-            var config = ConfigurationFactory.ParseString(@"
-akka.persistence{
-          journal {
-            plugin = ""akka.persistence.journal.sql-server""
-            sql-server {
-                class = ""Akka.Persistence.SqlServer.Journal.SqlServerJournal, Akka.Persistence.SqlServer""
-                plugin-dispatcher = ""akka.actor.default-dispatcher""
-                table-name = EventJournal
-                schema-name = dbo
-                auto-initialize = on
-                connection-string = ""Data Source=Y-BROVKIN-M\\SQL2016;Initial Catalog=akkatest;Integrated Security=True""
-            }
-          }
-          publish-plugin-commands = on
-          snapshot-store {
-            plugin = ""akka.persistence.snapshot-store.sql-server""
-            sql-server {
-                class = ""Akka.Persistence.SqlServer.Snapshot.SqlServerSnapshotStore, Akka.Persistence.SqlServer""
-                plugin-dispatcher = ""akka.actor.default-dispatcher""
-                table-name = SnapshotStore
-                schema-name = dbo
-                auto-initialize = on
-                connection-string = ""Data Source=Y-BROVKIN-M\\SQL2016;Initial Catalog=akkatest;Integrated Security=True""
-            }
-          }
-        }");
+            //var config = HoconLoader.ParseConfig("akka.hocon");
+            var config = HoconLoader.ParseConfig("persistence.hocon")
+                .WithFallback(ClusterSharding.DefaultConfig())
+                .WithFallback(Persistence.DefaultConfig());
+            var actorSystem = ActorSystem.Create("testSystem", config);
+            var sharding = ClusterSharding.Get(actorSystem);
 
-            using (var system = ActorSystem.Create("MyServer", config))
+
+            var shardRegion = sharding.Start("priceAggregator",
+                s => Props.Create(() => new UserActor()),
+                ClusterShardingSettings.Create(actorSystem),
+                new MessageExtractor());
+            //Cluster.Get(system).RegisterOnMemberUp(() =>
+            //{
+            //    var sharding = ClusterSharding.Get(system);
+
+            //    var shardRegion = sharding.Start("userActor", s => UserActor.PropsFor(s), ClusterShardingSettings.Create(system),
+            //        new MessageExtractor());
+            //});
+
+
+            //var userActor = system.ActorOf(Props.Create(() => new UserActor()), "UserActor1");
+            //system.EventStream.Subscribe(userActor, typeof(string));
+
+            for (var i = 0; i <= 200; i++)
             {
-                var userActor = system.ActorOf(Props.Create(() => new UserActor()), "UserActor1");
-                system.EventStream.Subscribe(userActor, typeof(string));
-
-                for (var i = 0; i <= 200; i++)
-                {
-                    var msg = $"Message{i}";
-                    system.EventStream.Publish(msg);
-                }
-                Console.ReadLine();
+                var msg = $"Message{i}";
+                shardRegion.Tell(msg);
+                //system.EventStream.Publish(msg);
             }
+            Console.ReadLine();
         }
 
         public void Stop()
